@@ -1,6 +1,4 @@
-from dotenv import load_dotenv
-import os
-from youtube_search import YouTubeSearch  # Assuming you saved the previous code as youtube_search.py
+from youtube_search import YouTubeSearch
 
 
 def main():

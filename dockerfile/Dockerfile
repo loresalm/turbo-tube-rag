@@ -20,6 +20,9 @@ RUN pip install ollama llama-index chromadb
 RUN pip install pandas
 RUN pip install numpy
 RUN pip install yt-dlp
+RUN pip install llama-index
+RUN pip  install  llama-index-readers-web
+RUN pip install llama-index-llms-ollama
 
 # Set the working directory
 WORKDIR /home

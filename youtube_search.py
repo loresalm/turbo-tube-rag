@@ -3,6 +3,7 @@ from typing import List, Dict
 import time
 from functools import lru_cache
 
+
 class YouTubeSearch:
     def __init__(self):
         """Initialize YouTubeSearch with default options"""
@@ -33,7 +34,7 @@ class YouTubeSearch:
             List[Dict]: List of video information dictionaries
         """
         self._rate_limit()
-        
+
         try:
             with YoutubeDL(self.ydl_opts) as ydl:
                 # Construct search URL
@@ -41,25 +42,25 @@ class YouTubeSearch:
                     f"ytsearch{max_results}:{search_query}", 
                     download=False
                 )
-                
+
                 videos = []
                 if search_results.get('entries'):
                     for entry in search_results['entries']:
                         video = {
                             'title': entry.get('title', 'No title'),
                             'video_id': entry.get('id', 'No ID'),
-                            'description': entry.get('description', 'No description'),
+                            'description': entry.get('description', 'No desc'),
                             'duration': entry.get('duration', 0),
                             'view_count': entry.get('view_count', 0),
                             'url': f"https://www.youtube.com/watch?v={entry.get('id')}",
                             'thumbnail': entry.get('thumbnail', ''),
                             'channel': entry.get('channel', 'Unknown channel'),
-                            'upload_date': entry.get('upload_date', 'Unknown date')
+                            'upload_date': entry.get('upload_date', 'No date')
                         }
                         videos.append(video)
-                
+
                 return videos
-                
+
         except Exception as e:
             print(f"An error occurred: {str(e)}")
             return []
@@ -76,7 +77,6 @@ class YouTubeSearch:
             with YoutubeDL(self.ydl_opts) as ydl:
                 info = ydl.extract_info(video_url, download=False)
                 return info
-                
         except Exception as e:
             print(f"An error occurred: {str(e)}")
             return {}
