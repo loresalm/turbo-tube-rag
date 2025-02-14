@@ -2,6 +2,7 @@ from yt_dlp import YoutubeDL
 from typing import List, Dict
 import time
 from functools import lru_cache
+import os
 
 
 class YouTubeSearch:
@@ -80,3 +81,34 @@ class YouTubeSearch:
         except Exception as e:
             print(f"An error occurred: {str(e)}")
             return {}
+
+    def download_video(self, video_url: str, output_dir: str = "downloads") -> str:
+        """
+        Download a YouTube video to the specified directory
+        Args:
+            video_url (str): YouTube video URL or ID
+            output_dir (str): Directory to save the downloaded video
+        Returns:
+            str: Path to the downloaded video file
+        """
+        # Ensure the output directory exists
+        os.makedirs(output_dir, exist_ok=True)
+
+        # Configure yt_dlp options for downloading
+        download_opts = {
+            'format': 'best',  # Download the best quality available
+            'outtmpl': os.path.join(output_dir, '%(title)s.%(ext)s'),  # Save file with title as name
+            'quiet': True,
+            'no_warnings': True,
+        }
+
+        try:
+            with YoutubeDL(download_opts) as ydl:
+                # Download the video
+                info = ydl.extract_info(video_url, download=True)
+                file_path = ydl.prepare_filename(info)
+                print(f"Video downloaded successfully: {file_path}")
+                return file_path
+        except Exception as e:
+            print(f"An error occurred while downloading the video: {str(e)}")
+            return None
