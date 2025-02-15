@@ -9,18 +9,24 @@ import ollama
 import base64
 
 
-# Configuration
-INPUT_VIDEO_DIR = "downloads"  # Directory containing downloaded videos
-OUTPUT_CLIPS_DIR = "selected_clips"    # Directory to save selected video clips
-FRAME_INTERVAL = 60                   # Extract a frame every 30 seconds
+with open("fun_facts_output.json", 'r') as file:
+    data = json.load(file)
+
+# Access a specific fact
+fact1 = data['fun_facts']['fact1']
+VIDEO_SCRIPT = fact1['video_script']
+
+FRAME_INTERVAL = 20                   # Extract a frame every 30 seconds
 RESOLUTION_FACTOR = 0.2             # Reduce frame resolution by 50%
-OLLAMA_API_URL = "http://localhost:11434/api/generate"  # Ollama API endpoint
-VIDEO_SCRIPT = "Michael Schumacher's early racing career: documentaries"  # Example script (replace with actual script from JSON)
-EXTRACTED_FRAMES_DIR = "downloads/extracted_frames"  # Directory to save extracted frames
 
+prompt = (
+        "Evaluate if this image is a good fit for the following video script. "
+        f"Script: {VIDEO_SCRIPT}\n"
+        "Respond with EXACTLY one word: either 'good' or 'bad'. "
+        "Use 'good' if the image fits well with the script, 'bad' if it doesn't."
+    )
 
-# Ensure output directories exist
-os.makedirs(OUTPUT_CLIPS_DIR, exist_ok=True)
+INPUT_VIDEO_DIR = "downloads"  # Directory containing downloaded videos
 
 
 def extract_frames(video_path, interval):
@@ -72,6 +78,21 @@ def save_frame(frame, video_name, frame_number, folder_path):
     return frame_path
 
 
+def check_video_pertinence(prompt):
+    """Generate a list of YouTube search queries related to a fun fact."""
+    response = ollama.chat(
+        model="Zephyr",
+        messages=[
+            {
+                "role": "user",
+                "content": (
+                    prompt),
+            }
+        ],
+    )
+    return response["message"]["content"]
+
+
 def reduce_resolution(frame, factor):
     """
     Reduce the resolution of a frame by a given factor.
@@ -87,19 +108,19 @@ def reduce_resolution(frame, factor):
     return cv2.resize(frame, (new_width, new_height))
 
 
-def evaluate_frame_with_llava(frame, script):
+def evaluate_frame_with_llava(frame, prompt):
     """
     Use the LLaVA model (via Ollama) to evaluate if the frame is a good fit for the script.
-    
+
     Args:
         frame: numpy.ndarray
             The video frame to evaluate, in BGR format
-        script (str): 
+        script (str):
             The video script to compare against
-            
+
     Returns:
         bool: True if the frame is a good fit, False otherwise
-        
+
     Notes:
         - Converts LLaVA's response to a boolean
         - Returns False on any error or unclear response
@@ -108,22 +129,12 @@ def evaluate_frame_with_llava(frame, script):
     # Save the frame as a temporary image
     temp_image_path = "temp_frame.jpg"
     cv2.imwrite(temp_image_path, frame)
-    
     # Read the image file and convert to base64
     with open(temp_image_path, 'rb') as image_file:
         image_data = base64.b64encode(image_file.read()).decode('utf-8')
-    
     # Clean up the temporary file
     os.remove(temp_image_path)
-    
     # Prepare a more structured prompt for LLaVA
-    prompt = (
-        "Evaluate if this image is a good fit for the following video script. "
-        f"Script: {script}\n"
-        "Respond with EXACTLY one word: either 'good' or 'bad'. "
-        "Use 'good' if the image fits well with the script, 'bad' if it doesn't."
-    )
-
     try:
         # Make the API call to Ollama with base64 encoded image
         res = ollama.chat(
@@ -134,10 +145,8 @@ def evaluate_frame_with_llava(frame, script):
                 'images': [image_data]
             }]
         )
-
         # Get the response and clean it
         response = res['message']['content'].lower().strip()
-
         # Convert to boolean based on exact match
         if response == 'good':
             return True
@@ -146,13 +155,12 @@ def evaluate_frame_with_llava(frame, script):
         else:
             print(f"Unexpected response from LLaVA: {response}")
             return False
-
     except Exception as e:
         print(f"Error calling Ollama API: {e}")
         return False
 
 
-def cut_video_clip(video_path, timestamp, output_path, clip_duration=10):
+def cut_video_clip(video_path, timestamp, output_path, offset=10):
     """
     Cut a clip from the video centered around the given timestamp.
     Args:
@@ -172,7 +180,6 @@ def cut_video_clip(video_path, timestamp, output_path, clip_duration=10):
     # Calculate duration in seconds
     duration_seconds = total_frames / fps"""
 
-    offset = clip_duration/2
     start_time = max(0, timestamp - offset)
     end_time = timestamp + offset
 
@@ -188,7 +195,7 @@ def cut_video_clip(video_path, timestamp, output_path, clip_duration=10):
     subprocess.run(command, check=True)
 
 
-def process_single_video(video_name):
+def process_single_video(video_name, prompt):
     video_path = f"{INPUT_VIDEO_DIR}/{video_name}"
     extract_path = "downloads/extracted_frames"
     reject_path = "downloads/rejected_frames"
@@ -224,7 +231,7 @@ def process_single_video(video_name):
         # Reduce frame resolution
         reduced_frame = reduce_resolution(frame_data, RESOLUTION_FACTOR)
 
-        is_good_fit = evaluate_frame_with_llava(reduced_frame, VIDEO_SCRIPT)
+        is_good_fit = evaluate_frame_with_llava(reduced_frame, prompt)
 
         if is_good_fit:
             save_frame(reduced_frame, video_name, timestamp, extract_path)
@@ -239,9 +246,13 @@ def process_videos():
     """
     Process all videos in the input directory.
     """
+
     for video_file in os.listdir(INPUT_VIDEO_DIR):
+        video_name = video_file
+
         video_path = os.path.join(INPUT_VIDEO_DIR, video_file)
         print(f"Processing video: {video_file}")
+
 
         # Extract frames every 30 seconds
         frames = extract_frames(video_path, FRAME_INTERVAL)
@@ -267,6 +278,5 @@ def process_videos():
 
 
 if __name__ == "__main__":
-    video_name = "Craziest Moments in F1 History.mp4"
-    process_single_video(video_name)
+    process_single_video(video_name, prompt)
     # process_videos()
