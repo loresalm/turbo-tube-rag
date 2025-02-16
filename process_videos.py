@@ -90,7 +90,17 @@ def check_video_pertinence(prompt):
             }
         ],
     )
-    return response["message"]["content"]
+
+    resp = response["message"]["content"].lower()
+    print(" ")
+    print(video_name)
+    print(resp)
+    print(" ")
+
+    if "false" in resp:
+        return False
+    else:
+        return True
 
 
 def reduce_resolution(frame, factor):
@@ -195,6 +205,32 @@ def cut_video_clip(video_path, timestamp, output_path, offset=10):
     subprocess.run(command, check=True)
 
 
+def load_json(file_path):
+    """Helper function to load a JSON file."""
+    with open(file_path, 'r') as file:
+        return json.load(file)
+
+
+def get_video_info(json_file_path):
+    """
+    Reads a JSON file containing video metadata and returns a dictionary
+    with video titles as keys and their descriptions as values.
+    """
+    # Load the JSON file
+    video_metadata = load_json(json_file_path)
+
+    # Initialize a dictionary to store video titles and descriptions
+    video_info = {}
+
+    # Iterate through the list of videos in the JSON file
+    for video in video_metadata:
+        title = video.get('title', 'Unknown Title')  # Get the title, default to 'Unknown Title' if not found
+        description = video.get('description', ' ')  # Get the description, default if not found
+        video_info[title] = description
+
+    return video_info
+
+
 def process_single_video(video_name, prompt):
     video_path = f"{INPUT_VIDEO_DIR}/{video_name}"
     extract_path = "downloads/extracted_frames"
@@ -209,51 +245,58 @@ def process_single_video(video_name, prompt):
 
     YouTube Video:
     Title: {video_name}
-    Description: {video_desc}
-    Answer:
+
+    Respond with ONLY "True" if the video is relevant or "False" if it is not.
     """
-    check_video_pertinence(prompt)
 
-    # Get a list of all files in the folder
-    files = glob.glob(os.path.join(extract_path, "*"))
-    # Loop through the files and delete them
-    for file in files:
-        try:
-            if os.path.isfile(file):  # Ensure it's a file (not a directory)
-                os.remove(file)
-                print(f"Deleted: {file}")
-        except Exception as e:
-            print(f"Error deleting {file}: {e}")
+    is_pertinet = check_video_pertinence(prompt_check_video)
 
-    # Get a list of all files in the folder
-    files = glob.glob(os.path.join(reject_path, "*"))
-    # Loop through the files and delete them
-    for file in files:
-        try:
-            if os.path.isfile(file):  # Ensure it's a file (not a directory)
-                os.remove(file)
-                print(f"Deleted: {file}")
-        except Exception as e:
-            print(f"Error deleting {file}: {e}")
+    print(f"is pertinet? {is_pertinet}")
 
-    frames = extract_frames(video_path, FRAME_INTERVAL)
-    for i, f in enumerate(frames):
+    if is_pertinet:
 
-        frame_data = f["frame"]
-        timestamp = f["timestamp"]
+        # Get a list of all files in the folder
+        files = glob.glob(os.path.join(extract_path, "*"))
+        # Loop through the files and delete them
+        for file in files:
+            try:
+                if os.path.isfile(file):  # Ensure it's a file (not a directory)
+                    os.remove(file)
+                    print(f"Deleted: {file}")
+            except Exception as e:
+                print(f"Error deleting {file}: {e}")
 
-        # Reduce frame resolution
-        reduced_frame = reduce_resolution(frame_data, RESOLUTION_FACTOR)
+        # Get a list of all files in the folder
+        files = glob.glob(os.path.join(reject_path, "*"))
+        # Loop through the files and delete them
+        for file in files:
+            try:
+                if os.path.isfile(file):  # Ensure it's a file (not a directory)
+                    os.remove(file)
+                    print(f"Deleted: {file}")
+            except Exception as e:
+                print(f"Error deleting {file}: {e}")
 
-        is_good_fit = evaluate_frame_with_llava(reduced_frame, prompt)
+        frames = extract_frames(video_path, FRAME_INTERVAL)
+        for i, f in enumerate(frames):
 
-        if is_good_fit:
-            save_frame(reduced_frame, video_name, timestamp, extract_path)
-            clip_name = f"{os.path.splitext(video_name)[0]}_clip_at_{timestamp}s.mp4"
-            clip_path = os.path.join(extract_path, clip_name)
-            cut_video_clip(video_path, timestamp, clip_path, clip_duration=10)
-        else:
-            save_frame(reduced_frame, video_name, timestamp, reject_path)
+            frame_data = f["frame"]
+            timestamp = f["timestamp"]
+
+            # Reduce frame resolution
+            reduced_frame = reduce_resolution(frame_data, RESOLUTION_FACTOR)
+
+            is_good_fit = evaluate_frame_with_llava(reduced_frame, prompt)
+
+            if is_good_fit:
+                save_frame(reduced_frame, video_name, timestamp, extract_path)
+                clip_name = f"{os.path.splitext(video_name)[0]}_clip_at_{timestamp}s.mp4"
+                clip_path = os.path.join(extract_path, clip_name)
+                cut_video_clip(video_path, timestamp, clip_path, clip_duration=10)
+            else:
+                save_frame(reduced_frame, video_name, timestamp, reject_path)
+    else: 
+        print(f"Video not pertinent: {video_name}")
 
 
 def process_videos():
@@ -262,7 +305,7 @@ def process_videos():
     """
 
     for video_file in os.listdir(INPUT_VIDEO_DIR):
-        video_name = video_file
+        #video_name = video_file
 
         video_path = os.path.join(INPUT_VIDEO_DIR, video_file)
         print(f"Processing video: {video_file}")
@@ -292,5 +335,6 @@ def process_videos():
 
 
 if __name__ == "__main__":
+    video_name = "Lance Stroll's Crazy Pit Stop Drama! #Shorts.mp4"
     process_single_video(video_name, prompt)
     # process_videos()

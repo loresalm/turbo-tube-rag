@@ -1,4 +1,4 @@
-from youtube_search import YouTubeSearch
+from YouTubeSearcher import YouTubeSearcher
 import json
 
 
@@ -20,7 +20,7 @@ def main():
     data = load_json(file_path)
 
     # Initialize YouTube search
-    yt = YouTubeSearch()
+    yt = YouTubeSearcher()
 
     # Extract YouTube queries from "fact1"
     fact1_queries = data['fun_facts']['fact1']['youtube_queries']

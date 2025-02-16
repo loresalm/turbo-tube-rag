@@ -183,3 +183,10 @@ chroma_db/49a7799e-c8b2-4229-804f-8a4dd24f6873/data_level0.bin
 chroma_db/49a7799e-c8b2-4229-804f-8a4dd24f6873/header.bin
 chroma_db/49a7799e-c8b2-4229-804f-8a4dd24f6873/length.bin
 chroma_db/49a7799e-c8b2-4229-804f-8a4dd24f6873/link_lists.bin
+
+
+data/
+
+.gitignore
+output.wav
+narration.mp3
