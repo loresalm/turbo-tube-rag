@@ -9,6 +9,11 @@ def load_json(file_path):
     return data
 
 
+def save_json(data, file_path):
+    with open(file_path, 'w') as file:
+        json.dump(data, file, indent=4)
+
+
 def main():
     # Load the JSON file
     file_path = "fun_facts_output.json"  # Replace with the actual path to your JSON file
@@ -54,12 +59,24 @@ def main():
 
     # Print the final list of unique videos
     print("\nFinal list of unique videos:")
+    downloaded_videos_metadata = []
     for video in unique_videos:
         print(f"Title: {video['title']}, URL: {video['url']}")
         duration = round(video['duration']/60, 2)
         print(f"-------> Duration: {duration} min")
         if duration < 15:
             yt.download_video(video['url'], "downloads")
+            # Add metadata to the list
+            downloaded_videos_metadata.append({
+                            'title': video['title'],
+                            'description': video.get('description', ''),
+                            'url': video['url'],
+                            'duration': duration,
+                            'channel': video['channel'],
+                            'views': video['view_count']
+                        })
+    save_json(downloaded_videos_metadata, "downloaded_videos_metadata.json")
+
 
 
 if __name__ == "__main__":

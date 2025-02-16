@@ -200,6 +200,20 @@ def process_single_video(video_name, prompt):
     extract_path = "downloads/extracted_frames"
     reject_path = "downloads/rejected_frames"
 
+    prompt_check_video = f"""
+    Based on the script and YouTube video details below,
+    should I consider this video for potential clips?
+    Respond with ONLY "True" if the video is relevant or "False" if it is not.
+
+    Script: {VIDEO_SCRIPT}
+
+    YouTube Video:
+    Title: {video_name}
+    Description: {video_desc}
+    Answer:
+    """
+    check_video_pertinence(prompt)
+
     # Get a list of all files in the folder
     files = glob.glob(os.path.join(extract_path, "*"))
     # Loop through the files and delete them
