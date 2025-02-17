@@ -20,6 +20,7 @@ def suppress_logging():
 class DocumentProcessor:
     def __init__(self):
         # Sentence Splitter
+        self.fun_facts = {}
         print("+--> Ready to read documents")
         print("|")
 
@@ -174,3 +175,54 @@ class DocumentProcessor:
         print("+--> Results saved at {output_file}")
         print("|")
         return result
+
+    def get_fun_facts(self, article_url, output_file):
+        """Full pipeline: Extract fun facts, generate YouTube querie
+        and video scripts for each, then save to JSON."""
+        article_text = self.fetch_webpage_content(article_url)
+        fun_facts_text = self.extract_fun_facts(article_text)
+        fun_facts = self.parse_fun_facts(fun_facts_text)
+        result = {
+            "article_url": article_url,  # Save article URL at the top level
+            "fun_facts": {}
+        }
+        for i, fact in enumerate(fun_facts, 1):
+            fact_key = f"fact{i}"
+            result["fun_facts"][fact_key] = {
+                "text": fact,
+            }
+        # Save results to a JSON file
+        with open(output_file, "w", encoding="utf-8") as f:
+            json.dump(result, f, indent=4, ensure_ascii=False)
+        print(f"+--> Results saved at {output_file}")
+        print("|")
+        self.fun_facts = result
+
+    def generate_queries_script(self, fact_id, output_file):
+        fact_key = fact_id
+        fact = self.fun_facts["fun_facts"][fact_key]
+        print("+--+")
+        print("   |")
+        print(f"   +-- {fact_key}")
+        print("   |")
+        print("   | Generating youtube queries")
+        print("   |")
+        youtube_queries = self.generate_youtube_queries(fact)
+        print("   | ")
+        print("   | Generating video script")
+        print("   |")
+        video_script = self.generate_video_script(fact)
+        print("   | ")
+
+        self.fun_facts["fun_facts"][fact_key] = {
+            "text": fact,
+            "youtube_queries": youtube_queries,
+            "video_script": video_script
+        }
+        # Save results to a JSON file
+        with open(output_file, "w", encoding="utf-8") as f:
+            json.dump(self.fun_facts, f, indent=4, ensure_ascii=False)
+        print(f"   +--> Results saved at {output_file}")
+        print("   |")
+        print("+--+")
+        print("|")

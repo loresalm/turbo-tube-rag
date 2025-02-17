@@ -15,7 +15,8 @@ class YouTubeSearcher:
             'extract_flat': True,  # Don't download videos
         }
         self.basepath = basepath
-        self.data = self.load_json(f"{basepath}/{json_file}")
+        self.json_file_path = f"{basepath}/{json_file}"
+        self.data = self.load_json(self.json_file_path)
         self.last_request_time = 0
         self.min_interval = 1  # Minimum seconds between requests
         print("+--> Ready search youtube videos")
@@ -127,7 +128,7 @@ class YouTubeSearcher:
             print(f"   | Download error for the video: {str(e)}")
             return None
 
-    def get_unique_videos(self, fact):
+    def get_unique_videos(self, fact, max_results=3):
         unique_videos = []
         fact_queries = self.data['fun_facts'][fact]['youtube_queries']
         print("   | Getting youtube videos from generated queries")
@@ -137,7 +138,7 @@ class YouTubeSearcher:
             for query in fact_queries:
                 search_results = self.search_videos(
                     search_query=query,
-                    max_results=3  # Get the first 3 videos for each query
+                    max_results=max_results  # Get the first X videos for each query
                 )
 
                 # Check if the video is already in the list and add it if not
@@ -149,6 +150,8 @@ class YouTubeSearcher:
             print(f"   | An error occurred: {str(e)}")
             print("   |")
         print(f"   | {len(unique_videos)} videos found")
+        print("   |")
+        print("   | Downloading")
         print("   |")
         return unique_videos
 
@@ -173,5 +176,37 @@ class YouTubeSearcher:
                     rej += 1
             print(f"   | Downloaded {ok} videos, rejected {rej} videos longer than {max_duration} min.")   # noqa: E501
             print("   |")
+        print("+--+")
+        print("|")
+
+    def download_fact_videos(self, fact_key, max_duration):
+        download_folder = f"{self.basepath}/{fact_key}"
+        os.makedirs(f"{download_folder}", exist_ok=True)
+        print("+--+")
+        print("   |")
+        print(f"   +-- {fact_key}")
+        print("   |")
+        unique_videos = self.get_unique_videos(fact_key)
+        rej = 0
+        ok = 0
+        video_names = []
+        video_files = []
+        for video in unique_videos:
+            duration = round(video['duration']/60, 2)
+            if duration < max_duration:
+                file_path = self.download_video(video['url'], download_folder)
+                video_files.append(file_path)
+                video_names.append(f"{ok} - {video['title']}")
+                ok += 1
+            else:
+                rej += 1
+        self.data["fun_facts"][fact_key]["video_titles"] = video_names
+        self.data["fun_facts"][fact_key]["video_paths"] = video_files
+        # Save results to a JSON file
+        with open(self.json_file_path, "w", encoding="utf-8") as f:
+            json.dump(self.data, f, indent=4, ensure_ascii=False)
+
+        print(f"   | Downloaded {ok} videos, rejected {rej} videos longer than {max_duration} min.")   # noqa: E501
+        print("   |")
         print("+--+")
         print("|")

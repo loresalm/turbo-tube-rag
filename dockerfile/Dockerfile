@@ -23,6 +23,8 @@ RUN pip install yt-dlp
 RUN pip install llama-index
 RUN pip  install  llama-index-readers-web
 RUN pip install llama-index-llms-ollama
+RUN pip install opencv-python
+RUN apt-get update && apt-get install ffmpeg libsm6 libxext6  -y
 
 # Set the working directory
 WORKDIR /home
