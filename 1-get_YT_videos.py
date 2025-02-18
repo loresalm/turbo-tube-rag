@@ -4,7 +4,7 @@ from YouTubeSearcher import YouTubeSearcher
 # Load the JSON file
 base_path = "data/output/MS"
 json_file = "fun_facts.json"
-max_duration = 5
+max_duration = 15
 fact_key = "fact1"
 
 # Initialize YouTube search

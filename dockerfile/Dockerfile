@@ -27,7 +27,12 @@ RUN pip install llama-index-llms-ollama
 RUN pip install opencv-python
 RUN apt-get update && apt-get install ffmpeg libsm6 libxext6  -y
 RUN pip install ffmpeg-python
+RUN pip install coqui-tts
 
+RUN apt-get update && \
+    apt-get install -y espeak-ng && \
+    apt-get clean && \
+    rm -rf /var/lib/apt/lists/*
 
 # Set the working directory
 WORKDIR /home

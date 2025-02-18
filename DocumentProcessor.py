@@ -18,11 +18,17 @@ def suppress_logging():
 
 
 class DocumentProcessor:
-    def __init__(self):
+    def __init__(self, prompt_file_path):
+        with open(prompt_file_path, 'r') as file:
+            self.prompts = json.load(file)
         # Sentence Splitter
         self.fun_facts = {}
         print("+--> Ready to read documents")
         print("|")
+
+    def get_pompt(self, prompt_id, var_dict):
+        prompt = self.prompts[prompt_id]
+        return prompt.format(**var_dict)
 
     def clean_text(self, text):
         # Remove unwanted sections based on common patterns
@@ -71,19 +77,15 @@ class DocumentProcessor:
         """Extract 3 fun and interesting facts from the given article."""
         print("+--> Generating fun facts:")
         print("|")
+        prompt = self.get_pompt("extract_fun_facts",
+                                {"article_text": article_text})
         with suppress_logging():
             response = ollama.chat(
                 model="Zephyr",
                 messages=[
                     {
                         "role": "user",
-                        "content": (
-                            "Extract 3 fun and interesting facts from this article."  # noqa: E501
-                            "Make them engaging, concise, and unique. "
-                            "Avoid general infos and focus on surprising or unusual details. "  # noqa: E501
-                            "Format the response as a numbered list.\n\n"
-                            f"Article:\n{article_text}"
-                        ),
+                        "content": (prompt),
                     }
                 ],
             )
@@ -97,21 +99,17 @@ class DocumentProcessor:
         facts = re.findall(r"\d+\.\s(.+)", response_text)
         return facts
 
-    def generate_youtube_queries(self, fun_fact):
+    def generate_youtube_queries(self, fact):
         """Generate a list of YouTube search queries related to a fun fact."""
         with suppress_logging():
+            prompt = self.get_pompt("youtube_queries",
+                                    {"fact": fact})
             response = ollama.chat(
                 model="Zephyr",
                 messages=[
                     {
                         "role": "user",
-                        "content": (
-                            "Based on the following fun fact, generate a list of YouTube search queries "  # noqa: E501
-                            "someone could use to find interesting videos on this topic. "  # noqa: E501
-                            "Make them varied, using different angles like documentaries, expert talks, or analysis.\n\n"  # noqa: E501
-                            f"Fun Fact: {fun_fact}\n\n"
-                            "Format the response as a numbered list."
-                        ),
+                        "content": (prompt),
                     }
                 ],
             )
@@ -121,18 +119,14 @@ class DocumentProcessor:
         """Generate a short video script narrating
         the fun fact as an engaging story."""
         with suppress_logging():
+            prompt = self.get_pompt("voiceover_script",
+                                    {"fun_fact": fun_fact})
             response = ollama.chat(
                 model="Zephyr",
                 messages=[
                     {
                         "role": "user",
-                        "content": (
-                            "Write a short voiceover script for a 60-second video about the following fun fact. "  # noqa: E501
-                            "Make it engaging, with a storytelling approach, as if you're narrating a short, exciting story. "  # noqa: E501
-                            "Use a conversational tone and add some dramatic or fun elements to keep the viewer hooked.\n\n"   # noqa: E501
-                            f"Fun Fact: {fun_fact}\n\n"
-                            "Structure the response like a script with clear spoken lines."  # noqa: E501
-                        ),
+                        "content": (prompt),
                     }
                 ],
             )

@@ -8,7 +8,7 @@ fact_key = "fact1"
 video_sections = 3
 video_match_per_section = 2
 factor = 0.2
-max_nb_trials = 3
+max_nb_trials = 1
 offset = 10
 
 # Initialize YouTube search

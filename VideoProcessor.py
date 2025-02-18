@@ -49,7 +49,7 @@ class VideoProcessor:
             end = (start + part_size) if i < num_parts - 1 else total_sentences
             parts.append(" ".join(self.sentences[start:end]))
         self.sentences = parts
-        print(f"+--> Script splitted into {num_parts}")
+        print(f"+--> Script splitted into {num_parts} sections")
         print("|")
 
     def match_sentence_video(self, fact_key, video_match):
@@ -157,7 +157,6 @@ class VideoProcessor:
         if os.path.exists(folder_path):
             shutil.rmtree(folder_path)
         os.makedirs(folder_path)
-        print(f"Folder '{folder_path}' has been recreated.")
 
     def get_frame(self, video_path, factor, frames_folder_path, sent_id, clip_id):  # noqa: E501
         cap = cv2.VideoCapture(video_path)
@@ -207,7 +206,7 @@ class VideoProcessor:
                                                       clip_id)
                     print("      +--+")
                     print("         |")
-                    print(f"         +-- Evaluationg frame: {timestamp}")
+                    print(f"         +-- Evaluating frame: {timestamp}")
                     print("         |")
                     prompt = (
                             "Evaluate if this image is a good fit for the following video script. "  # noqa: E501
@@ -225,8 +224,14 @@ class VideoProcessor:
                         clip_id += 1
                         find_clip = False
                     elif find_trial > max_nb_trials:
-                        print(f"         +-- good fit not found after {find_trial} trials")  # noqa: E501
+                        print(f"         +-- good fit not found after {find_trial} trials. Getting a random clip")  # noqa: E501
                         print("         |")
+                        timestamp, frame = self.get_frame(video_path, factor,
+                                                          frames_folder_path,
+                                                          sent_id,
+                                                          clip_id)
+                        clip_path = f"{clips_folder_path}/sent_{sent_id}_clip_{clip_id}.mp4"  # noqa: E501
+                        self.cut_video_clip(video_path, timestamp, clip_path, offset)  # noqa: E501
                         find_clip = False
                     else:
                         print("         +-- Bad fit, trying again.")
