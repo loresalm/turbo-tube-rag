@@ -2,6 +2,7 @@ FROM ubuntu:22.04
 
 # Set non-interactive mode to avoid prompts during installation
 ENV DEBIAN_FRONTEND=noninteractive
+ENV OLLAMA_LOG_LEVEL=error
 
 # Install system dependencies (curl, sudo, jq, Python)
 RUN apt-get update && apt-get install -y \
@@ -25,6 +26,8 @@ RUN pip  install  llama-index-readers-web
 RUN pip install llama-index-llms-ollama
 RUN pip install opencv-python
 RUN apt-get update && apt-get install ffmpeg libsm6 libxext6  -y
+RUN pip install ffmpeg-python
+
 
 # Set the working directory
 WORKDIR /home
