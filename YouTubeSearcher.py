@@ -138,7 +138,7 @@ class YouTubeSearcher:
             for query in fact_queries:
                 search_results = self.search_videos(
                     search_query=query,
-                    max_results=max_results  # Get the first X videos for each query
+                    max_results=max_results  # Get the first X videos
                 )
 
                 # Check if the video is already in the list and add it if not
@@ -180,7 +180,7 @@ class YouTubeSearcher:
         print("|")
 
     def download_fact_videos(self, fact_key, max_duration):
-        download_folder = f"{self.basepath}/{fact_key}"
+        download_folder = f"{self.basepath}/{fact_key}/downloads"
         os.makedirs(f"{download_folder}", exist_ok=True)
         print("+--+")
         print("   |")

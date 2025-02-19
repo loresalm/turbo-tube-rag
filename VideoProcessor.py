@@ -22,7 +22,9 @@ def suppress_logging():
 
 
 class VideoProcessor:
-    def __init__(self, base_path, json_path):
+    def __init__(self, base_path, json_path, prompt_file_path):
+        with open(prompt_file_path, 'r') as file:
+            self.prompts = json.load(file)
         # Sentence Splitter
         self.base_path = base_path
         self.json_file_path = f"{base_path}/{json_path}"
@@ -31,6 +33,10 @@ class VideoProcessor:
 
         print("+--> Ready to process videos")
         print("|")
+
+    def get_pompt(self, prompt_id, var_dict):
+        prompt = self.prompts[prompt_id]
+        return prompt.format(**var_dict)
 
     def get_script_sentences(self, fact_key, num_parts=3):
         text = self.fun_facts["fun_facts"][fact_key]["video_script"]
@@ -55,25 +61,17 @@ class VideoProcessor:
     def match_sentence_video(self, fact_key, video_match):
         video_titles = self.fun_facts["fun_facts"][fact_key]["video_titles"]
         self.sent_video_matches = []
+
         print("+--> Matching script sections to videos")
         print("|")
         print("+--+")
         print("   |")
         for sent_id, sentence in enumerate(self.sentences):
+            prompt = self.get_pompt("match_sentences",
+                                    {"sentence": sentence,
+                                     "video_titles": video_titles})
             print(f"   +-- Script section: {sent_id}")
             print("   |")
-            prompt = f"""
-                        You are an expert in matching sentences to video titles based on their content. Your task is to analyze the following sentence and rank the provided video titles by how likely they are to contain footage related to the sentence. Return only the indices of the top 3 matching videos as a list.
-                        Sentence:{sentence}
-                        Video Titles:{video_titles}
-
-                        Instructions:
-                        2. Rank the video titles based on how closely they align with these themes.
-                        3. Return only the indices of the top {video_match} matching videos as a list, in order of relevance.
-
-                        Output format:
-                        [<index1>, <index2>, <index3>]
-                    """  # noqa: E501
             with suppress_logging():
                 response = ollama.chat(
                     model="Zephyr",
