@@ -30,13 +30,17 @@ class VideoProcessor:
         self.json_file_path = f"{base_path}/{json_path}"
         with open(self.json_file_path, 'r') as file:
             self.fun_facts = json.load(file)
+        self.sent_video_matches = []
 
         print("+--> Ready to process videos")
         print("|")
 
-    def get_pompt(self, prompt_id, var_dict):
+    def get_pompt(self, prompt_id, var_dict=None):
         prompt = self.prompts[prompt_id]
-        return prompt.format(**var_dict)
+        if var_dict is None:
+            return prompt
+        else:
+            return prompt.format(**var_dict)
 
     def get_script_sentences(self, fact_key, num_parts=3):
         text = self.fun_facts["fun_facts"][fact_key]["video_script"]
@@ -69,7 +73,8 @@ class VideoProcessor:
         for sent_id, sentence in enumerate(self.sentences):
             prompt = self.get_pompt("match_sentences",
                                     {"sentence": sentence,
-                                     "video_titles": video_titles})
+                                     "video_titles": video_titles,
+                                     "video_match": video_match})
             print(f"   +-- Script section: {sent_id}")
             print("   |")
             with suppress_logging():
@@ -97,6 +102,18 @@ class VideoProcessor:
                 print(f"   +-- No indices found in the response. Random selection: {indices}")   # noqa: E501
                 print("   |")
             self.sent_video_matches.append((sentence, indices))
+        video_id = {}
+        for s_id in range(len(self.sent_video_matches)):
+            vid_idx = self.sent_video_matches[s_id][1]
+            video_id[str(s_id)] = vid_idx
+
+        fact = self.fun_facts["fun_facts"][fact_key]
+        fact["best_video_idx"] = video_id
+        self.fun_facts["fun_facts"][fact_key] = fact
+        # Save results to a JSON file
+        with open(self.json_file_path, "w", encoding="utf-8") as f:
+            json.dump(self.fun_facts, f, indent=4, ensure_ascii=False)
+
         print("+--+")
         print("|")
 
@@ -107,6 +124,7 @@ class VideoProcessor:
         return cv2.resize(frame, (new_width, new_height))
 
     def evaluate_frame_with_llava(self, frame, prompt):
+        print("------------------> evaluate frame")
         # Save the frame as a temporary image
         temp_image_path = "temp_frame.jpg"
         cv2.imwrite(temp_image_path, frame)
@@ -127,8 +145,12 @@ class VideoProcessor:
                         'images': [image_data]
                     }]
                 )
+                print(" ")
+                print(res)
+                print(" ")
                 # Get the response and clean it
                 response = res['message']['content'].lower().strip()
+                print(response)
                 # Convert to boolean based on exact match
                 if response == 'good':
                     return True
@@ -144,12 +166,17 @@ class VideoProcessor:
     def cut_video_clip(self, video_path, timestamp, output_path, offset=10):
         start_time = max(0, timestamp - offset)
         end_time = timestamp + offset
-        (
-            ffmpeg
-            .input(video_path, ss=start_time, to=end_time)
-            .output(output_path, codec="copy")
-            .run(quiet=True)  # Suppresses output
-        )
+        try:
+            (
+                ffmpeg
+                .input(video_path, ss=start_time, to=end_time)
+                .output(output_path, codec="copy")
+                .run(quiet=True, capture_stdout=True, capture_stderr=True)
+            )
+        except ffmpeg.Error as e:
+            print("FFmpeg error occurred:", e)
+            print("STDOUT:", e.stdout.decode())
+            print("STDERR:", e.stderr.decode())
 
     def recreate_folder(self, folder_path):
         if os.path.exists(folder_path):
@@ -163,16 +190,87 @@ class VideoProcessor:
         total_frames = int(cap.get(cv2.CAP_PROP_FRAME_COUNT))
         # Select a random frame index
         random_frame_index = random.randint(0, total_frames - 1)
-        frame_path = f"{frames_folder_path}/sent_{sent_id}_clip_{clip_id}_frame_{random_frame_index}.png"   # noqa: E501
         # Set the video capture to the random frame index
         cap.set(cv2.CAP_PROP_POS_FRAMES, random_frame_index)
         # Read the frame
         ret, frame = cap.read()
         timestamp = random_frame_index // fps
+        frame_path = f"{frames_folder_path}/sent_{sent_id}_clip_{clip_id}_frame_{timestamp}.png"   # noqa: E501
         frame = self.reduce_resolution(frame, factor)
         cv2.imwrite(frame_path, frame)
         cap.release()
         return timestamp, frame
+
+    def get_clips(self, fact_key, factor, max_nb_trials, offset):
+        print("+--> Exctracting clips")
+        print("|")
+        clips_folder_path = f"{self.base_path}/{fact_key}/clips"
+        frames_folder_path = f"{self.base_path}/{fact_key}/frames"
+        video_paths = self.fun_facts["fun_facts"][fact_key]["video_paths"]
+        self.recreate_folder(clips_folder_path)
+        self.recreate_folder(frames_folder_path)
+        clip_id = 0
+        sent_id = 0
+        print("+--+")
+        print("   |")
+        if len(self.sent_video_matches) == 0:
+            best_vid = self.fun_facts["fun_facts"][fact_key]["best_video_idx"] 
+            for sentence, indices in best_vid.items():
+                self.sent_video_matches.append((sentence, indices))
+
+        for sent, vid_ids in self.sent_video_matches:
+            print(f"   +--> Extracting for section: {sent_id}")
+            print("   |")
+            print("   +--+")
+            print("      |")
+            for vid_id in vid_ids:
+                print(f"      +--> Extracting from video id: {vid_id}")
+                print("      |")
+                video_path = video_paths[vid_id]
+                clip_found = False
+                for t in range(max_nb_trials):
+                    timestamp, frame = self.get_frame(video_path, factor,
+                                                      frames_folder_path,
+                                                      sent_id,
+                                                      clip_id)
+                    print("      +--+")
+                    print("         |")
+                    print(f"         +-- Evaluating frame: {timestamp}")
+                    print("         |")
+
+                    """
+                    prompt = self.get_pompt("eval_frame",
+                                            {"sent": sent})
+                    """
+                    prompt = self.get_pompt("simple_eval_frame")
+                    is_good_fit = self.evaluate_frame_with_llava(frame, prompt)
+                    print("         |")
+                    if is_good_fit:
+                        print("         +-- Good fit, extracting clip.")
+                        print("         |")
+                        clip_path = f"{clips_folder_path}/sent_{sent_id}_clip_{clip_id}.mp4"  # noqa: E501
+                        self.cut_video_clip(video_path, timestamp, clip_path, offset)   # noqa: E501
+                        clip_id += 1
+                        clip_found = True
+                    else:
+                        print("         +-- Bad fit, trying again.")
+                        print("         |")
+                if not clip_found:
+                    print(f"         +-- good fit not found after {max_nb_trials} trials. Getting a random clip")  # noqa: E501
+                    print("         |")
+                    timestamp, frame = self.get_frame(video_path, factor,
+                                                      frames_folder_path,
+                                                      sent_id,
+                                                      clip_id)
+                    clip_path = f"{clips_folder_path}/sent_{sent_id}_clip_{clip_id}_rand.mp4"  # noqa: E501
+                    self.cut_video_clip(video_path, timestamp, clip_path, offset)  # noqa: E501
+                    print("      +--+")
+                    print("      |")
+            sent_id += 1
+            print("   +--+")
+            print("   |")
+        print("+--+")
+        print("|")
 
     def extract_clips(self, fact_key, factor, max_nb_trials, offset):
         print("+--> Exctracting clips")
@@ -206,12 +304,8 @@ class VideoProcessor:
                     print("         |")
                     print(f"         +-- Evaluating frame: {timestamp}")
                     print("         |")
-                    prompt = (
-                            "Evaluate if this image is a good fit for the following video script. "  # noqa: E501
-                            f"Script: {sent}\n"
-                            "Respond with EXACTLY one word: either 'good' or 'bad'. "  # noqa: E501
-                            "Use 'good' if the image fits well with the script, 'bad' if it doesn't."  # noqa: E501
-                            )
+                    prompt = self.get_pompt("eval_frame",
+                                            {"sent": sent})
                     is_good_fit = self.evaluate_frame_with_llava(frame, prompt)
                     print("         |")
                     if is_good_fit:

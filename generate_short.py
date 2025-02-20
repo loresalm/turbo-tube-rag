@@ -31,9 +31,9 @@ output_file_path = f"{output_path}/{output_file}"
 #                                      #
 ########################################
 
-processor = DocumentProcessor(prompt_file)
-processor.get_fun_facts(article_url, output_file_path)
-processor.generate_queries_script(fact_id, output_file_path)
+# processor = DocumentProcessor(prompt_file)
+# processor.get_fun_facts(article_url, output_file_path)
+# processor.generate_queries_script(fact_id, output_file_path)
 
 ########################################
 #                                      #
@@ -41,8 +41,8 @@ processor.generate_queries_script(fact_id, output_file_path)
 #                                      #
 ########################################
 
-yt = YouTubeSearcher(output_path, output_file)
-yt.download_fact_videos(fact_id, max_duration)
+# yt = YouTubeSearcher(output_path, output_file)
+# yt.download_fact_videos(fact_id, max_duration)
 
 ########################################
 #                                      #
@@ -52,5 +52,5 @@ yt.download_fact_videos(fact_id, max_duration)
 
 vp = VideoProcessor(output_path, output_file, prompt_file)
 vp.get_script_sentences(fact_id, video_sections)
-vp.match_sentence_video(fact_id, video_match_per_section)
-vp.extract_clips(fact_id, factor, max_nb_trials, offset)
+# vp.match_sentence_video(fact_id, video_match_per_section)
+vp.get_clips(fact_id, factor, max_nb_trials, offset)
