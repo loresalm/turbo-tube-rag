@@ -18,11 +18,15 @@ def suppress_logging():
 
 
 class DocumentProcessor:
-    def __init__(self, prompt_file_path):
+    def __init__(self, prompt_file_path, json_file_path=None):
+        if json_file_path is None:
+            self.fun_facts = {}
+        else:
+            self.json_file_path = json_file_path
+            with open(json_file_path, 'r') as file:
+                self.fun_facts = json.load(file)
         with open(prompt_file_path, 'r') as file:
             self.prompts = json.load(file)
-        # Sentence Splitter
-        self.fun_facts = {}
         print("+--> Ready to read documents")
         print("|")
 
@@ -214,9 +218,57 @@ class DocumentProcessor:
             "video_script": video_script
         }
         # Save results to a JSON file
+        self.json_file_path = output_file
         with open(output_file, "w", encoding="utf-8") as f:
             json.dump(self.fun_facts, f, indent=4, ensure_ascii=False)
         print(f"   +--> Results saved at {output_file}")
         print("   |")
         print("+--+")
         print("|")
+
+    def get_script_sentences(self, fact_key, num_parts=3):
+        text = self.fun_facts["fun_facts"][fact_key]["video_script"]
+        # Step 1: Remove all text between []
+        cleaned_text = re.sub(r"\[.*?\]", "", text)
+        # Step 2: Extract all text between ""
+        self.sentences = re.findall(r'"(.*?)"', cleaned_text)
+        # Calculate the approximate number of sentences per part
+        total_sentences = len(self.sentences)
+        part_size = total_sentences // num_parts
+        # Split sentences into parts
+        parts = []
+        keywords = {}
+        for i in range(num_parts):
+            start = i * part_size
+            # Ensure last part gets any remaining sentences
+            end = (start + part_size) if i < num_parts - 1 else total_sentences
+            sent = " ".join(self.sentences[start:end])
+            kw = self.get_keywords(sent)
+            parts.append(sent)
+            keywords[str(i)] = kw
+        self.sentences = parts
+
+        fact = self.fun_facts["fun_facts"][fact_key]
+        fact["video_script_sections"] = parts
+        fact["keywords_sections"] = keywords
+        self.fun_facts["fun_facts"][fact_key] = fact
+        # Save results to a JSON file
+        with open(self.json_file_path, "w", encoding="utf-8") as f:
+            json.dump(self.fun_facts, f, indent=4, ensure_ascii=False)
+        print(f"+--> Script splitted into {num_parts} sections")
+        print("|")
+
+    def get_keywords(self, section):
+        with suppress_logging():
+            prompt = self.get_pompt("keywords", {"section": section})
+            response = ollama.chat(
+                model="Zephyr",
+                messages=[
+                    {
+                        "role": "user",
+                        "content": (prompt),
+                    }
+                ],
+            )
+            keywords = response["message"]["content"].strip().split(",")
+            return keywords

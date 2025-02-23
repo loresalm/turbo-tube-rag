@@ -34,6 +34,7 @@ RUN apt-get update && \
     apt-get clean && \
     rm -rf /var/lib/apt/lists/*
 
+RUN pip install moondream==0.0.5
+
 # Set the working directory
 WORKDIR /home
-

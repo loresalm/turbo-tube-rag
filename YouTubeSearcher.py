@@ -4,6 +4,7 @@ import time
 from functools import lru_cache
 import os
 import json
+import shutil
 
 
 class YouTubeSearcher:
@@ -181,7 +182,9 @@ class YouTubeSearcher:
 
     def download_fact_videos(self, fact_key, max_duration):
         download_folder = f"{self.basepath}/{fact_key}/downloads"
-        os.makedirs(f"{download_folder}", exist_ok=True)
+        if os.path.exists(download_folder):
+            shutil.rmtree(download_folder)
+        os.makedirs(download_folder)
         print("+--+")
         print("   |")
         print(f"   +-- {fact_key}")
