@@ -183,6 +183,7 @@ chroma_db/49a7799e-c8b2-4229-804f-8a4dd24f6873/data_level0.bin
 chroma_db/49a7799e-c8b2-4229-804f-8a4dd24f6873/header.bin
 chroma_db/49a7799e-c8b2-4229-804f-8a4dd24f6873/length.bin
 chroma_db/49a7799e-c8b2-4229-804f-8a4dd24f6873/link_lists.bin
+ollama_models/
 
 
 data/
@@ -190,3 +191,5 @@ data/
 .gitignore
 output.wav
 narration.mp3
+tests/vision_models/
+vision_models/

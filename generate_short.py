@@ -30,21 +30,22 @@ output_file_path = f"{output_path}/{output_file}"
 #      Step1: article --> script       #
 #                                      #
 ########################################
-
-# processor = DocumentProcessor(prompt_file, output_file_path)
-# processor.get_fun_facts(article_url, output_file_path)
-# processor.generate_queries_script(fact_id, output_file_path)
-# processor.get_script_sentences(fact_id, video_sections)
+"""
+processor = DocumentProcessor(prompt_file, output_file_path)
+processor.get_fun_facts(article_url, output_file_path)
+processor.generate_queries_script(fact_id, output_file_path)
+processor.get_script_sentences(fact_id, video_sections)
+"""
 
 ########################################
 #                                      #
 #   Step2: script --> download videos  #
 #                                      #
 ########################################
-
-# yt = YouTubeSearcher(output_path, output_file)
-# yt.download_fact_videos(fact_id, max_duration)
-
+"""
+yt = YouTubeSearcher(output_path, output_file)
+yt.download_fact_videos(fact_id, max_duration)
+"""
 ########################################
 #                                      #
 #   Step3: download videos -->  clips  #
@@ -52,15 +53,11 @@ output_file_path = f"{output_path}/{output_file}"
 ########################################
 
 vp = VideoProcessor(output_path, output_file, prompt_file)
-interval_seconds = 3
+interval_seconds = 10
 video_name = "Three Years After Near-Fatal Accident, Michael Schumacher's Legacy Lives On.mp4"
 model_path = "/home/tests/vision_models/moondream-2b-int8.mf"
-prompt = "Does this image fit at least one of the following keywords: Motorsports, Michael Schumacher, Go-karting? Answer with 'yes' or 'no'."
-factor = 0.5
-vp.match_sentence_video(fact_id, video_match_per_section)
-#vp.extract_center_frames(fact_id, video_name, interval_seconds, factor)
-#vp.evaluate_frame_with_moondream(model_path,  prompt)
-#vp.process_video_with_filters(fact_id, video_name)
-#vp.extract_good_clips(fact_id, video_name, interval_seconds)
-# 
-# vp.get_clips(fact_id, factor, max_nb_trials, offset)
+
+factor = 0.2
+# vp.match_sentence_video(fact_id, video_match_per_section)
+vp.convert_videos2clips(fact_id, interval_seconds, factor, model_path)
+
