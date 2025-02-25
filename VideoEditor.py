@@ -2,6 +2,8 @@ import os
 from collections import defaultdict
 import shutil
 import json
+import random
+
 from moviepy.editor import VideoFileClip  # type: ignore
 from moviepy.editor import AudioFileClip  # type: ignore
 from moviepy.editor import concatenate_videoclips  # type: ignore
@@ -25,21 +27,48 @@ class VideoEditor:
         # Get all video and audio files
         video_folder = f"{self.base_path}/{fact_id}/clips"
         audio_folder = f"{self.base_path}/{fact_id}/audio"
-        self.video_files = sorted(
-            [os.path.join(video_folder, f)
-             for f in os.listdir(video_folder) if f.endswith(".mp4")]
-        )
+        self.clips = {}
+        self.sections = self.fun_facts["fun_facts"][fact_id]["video_script_sections"]
+        for s_id, s in range(self.sections):
+            section_clips = sorted(
+                [os.path.join(video_folder, f)
+                 for f in os.listdir(video_folder) if f.endswith(".mp4")]
+            )
+            self.clips[str(s_id)] = section_clips
         audio_files = sorted(
             [os.path.join(audio_folder, f)
              for f in os.listdir(audio_folder) if f.endswith(".wav")]
         )
 
-        if not self.video_files or not audio_files:
-            raise ValueError("No video or audio files found!")
-
         # Load the audio file
         self.audio = AudioFileClip(audio_files[0]).set_fps(44100).volumex(2.0)
         self.audio_duration = self.audio.duration
+        self.section_duration = self.audio_duration/len(self.sections)
+
+    def pick_random_clip(self, clips, nb_clips):
+        if nb_clips <= len(clips):
+            return random.sample(clips, nb_clips)
+        else:
+            result = clips.copy()
+            while len(result) < nb_clips:
+                result.append(random.choice(clips))
+            return result
+
+    def edit_video(self, fact_id, nb_videos):
+
+        for s_id, s in range(self.sections):
+            c = self.pick_random_clip(self.clips[str(s_id)], nb_videos)
+            self.clips[str(s_id)] = c
+
+        for vid_id in range(nb_videos):
+            final_video_files = []
+            for s_id, s in range(self.sections):
+                final_video_files.append(self.clips[str(s_id)][vid_id])
+                # concatenate clip
+            # save final video
+
+
+"""
 
     def edit_video(self, nb_video_sections):
         grouped_clips = {}
@@ -179,3 +208,5 @@ if __name__ == "__main__":
     output_file = "output_video.mp4"  # Replace with your desired output file name
 
     add_subtitles_to_video(video_file, subtitle_file, output_file)
+
+"""
