@@ -35,6 +35,7 @@ RUN apt-get update && \
     rm -rf /var/lib/apt/lists/*
 
 RUN pip install moondream==0.0.5
+RUN pip install moviepy        
 
 # Set the working directory
 WORKDIR /home

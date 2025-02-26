@@ -13,7 +13,7 @@ class VideoEditor:
     def __init__(self, base_path, json_path):
         # Sentence Splitter
         self.base_path = base_path
-        self.json_file_path = f"{base_path}/{json_path}"
+        self.json_file_path = json_path
         with open(self.json_file_path, 'r') as file:
             self.fun_facts = json.load(file)
         self.final_output_path = f"{self.base_path}/final_videos"
@@ -29,21 +29,32 @@ class VideoEditor:
         audio_folder = f"{self.base_path}/{fact_id}/audio"
         self.clips = {}
         self.sections = self.fun_facts["fun_facts"][fact_id]["video_script_sections"]
-        for s_id, s in range(self.sections):
-            section_clips = sorted(
-                [os.path.join(video_folder, f)
-                 for f in os.listdir(video_folder) if f.endswith(".mp4")]
-            )
-            self.clips[str(s_id)] = section_clips
-        audio_files = sorted(
-            [os.path.join(audio_folder, f)
-             for f in os.listdir(audio_folder) if f.endswith(".wav")]
-        )
+        for s_id, s in enumerate(self.sections):
+            section_clips = []
+            print(f"- section {s_id}")
+            section_dir = os.path.join(video_folder, str(s_id))
+            yt_vid_dir = os.listdir(section_dir)
+            yt_vid_dir = [f for f in yt_vid_dir if f != ".DS_Store"]
+            for yt_vid in yt_vid_dir:
+                print(f"-- video folder  {yt_vid}")
+                print(section_dir, " ", yt_vid)
+                clip_path = os.path.join(section_dir, yt_vid)
+                clip_dir = os.listdir(clip_path)
+                print("--> type", type(clip_dir))
+                for clip_file in clip_dir:
+                    print(f"--- clip file  {clip_file}")
+                    if clip_file.endswith(".mp4"):
+                        section_clips.append(os.path.join(clip_path, clip_file))
 
+            self.clips[str(s_id)] = section_clips
+
+        """
+        audio_files = [os.path.join(audio_folder, f) for f in os.listdir(audio_folder) if f.endswith(".wav")]
         # Load the audio file
         self.audio = AudioFileClip(audio_files[0]).set_fps(44100).volumex(2.0)
         self.audio_duration = self.audio.duration
         self.section_duration = self.audio_duration/len(self.sections)
+        """
 
     def pick_random_clip(self, clips, nb_clips):
         if nb_clips <= len(clips):
@@ -54,19 +65,24 @@ class VideoEditor:
                 result.append(random.choice(clips))
             return result
 
-    def edit_video(self, fact_id, nb_videos):
+    def edit_video(self, nb_videos):
 
-        for s_id, s in range(self.sections):
+        for s_id, s in enumerate(self.sections):
             c = self.pick_random_clip(self.clips[str(s_id)], nb_videos)
             self.clips[str(s_id)] = c
 
         for vid_id in range(nb_videos):
             final_video_files = []
-            for s_id, s in range(self.sections):
+            for s_id, s in enumerate(self.sections):
+                print(self.clips[str(s_id)][vid_id])
                 final_video_files.append(self.clips[str(s_id)][vid_id])
-                # concatenate clip
-            # save final video
-
+            selected_clips = [VideoFileClip(clip) for clip in final_video_files]
+            final_video = concatenate_videoclips(selected_clips,
+                                                 method="compose")
+            final_video.write_videofile(f"{self.final_output_path}/short_{vid_id}.mp4", codec="libx264", fps=24)
+            for clip in selected_clips:
+                clip.close()
+            final_video.close()
 
 """
 

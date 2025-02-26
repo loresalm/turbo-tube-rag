@@ -1,6 +1,7 @@
 from DocumentProcessor import DocumentProcessor
 from YouTubeSearcher import YouTubeSearcher
 from VideoProcessor import VideoProcessor
+from VideoEditor import VideoEditor
 import os
 import json
 
@@ -51,13 +52,23 @@ yt.download_fact_videos(fact_id, max_duration)
 #   Step3: download videos -->  clips  #
 #                                      #
 ########################################
-
+"""
 vp = VideoProcessor(output_path, output_file, prompt_file)
 interval_seconds = 10
 video_name = "Three Years After Near-Fatal Accident, Michael Schumacher's Legacy Lives On.mp4"
 model_path = "/home/tests/vision_models/moondream-2b-int8.mf"
 
 factor = 0.2
-# vp.match_sentence_video(fact_id, video_match_per_section)
+vp.match_sentence_video(fact_id, video_match_per_section)
 vp.convert_videos2clips(fact_id, interval_seconds, factor, model_path)
+"""
 
+########################################
+#                                      #
+#     Step4: edit clips -->  shorts    #
+#                                      #
+########################################
+nb_final_shorts = 3
+vd = VideoEditor(output_path, output_file_path)
+vd.get_video_audio_files(fact_id)
+vd.edit_video(nb_final_shorts)
