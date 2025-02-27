@@ -2,6 +2,7 @@ from DocumentProcessor import DocumentProcessor
 from YouTubeSearcher import YouTubeSearcher
 from VideoProcessor import VideoProcessor
 from VideoEditor import VideoEditor
+from AudioGenerator import AudioGenerator
 import os
 import json
 
@@ -37,6 +38,16 @@ processor.get_fun_facts(article_url, output_file_path)
 processor.generate_queries_script(fact_id, output_file_path)
 processor.get_script_sentences(fact_id, video_sections)
 """
+########################################
+#                                      #
+#       Step2: script --> audio        #
+#                                      #
+########################################
+# Initialize YouTube search
+speaker_id = "p314"
+ag = AudioGenerator(output_path, output_file)
+ag.generate_audio(fact_id, speaker_id)
+
 
 ########################################
 #                                      #
@@ -68,7 +79,9 @@ vp.convert_videos2clips(fact_id, interval_seconds, factor, model_path)
 #     Step4: edit clips -->  shorts    #
 #                                      #
 ########################################
+"""
 nb_final_shorts = 3
 vd = VideoEditor(output_path, output_file_path)
 vd.get_video_audio_files(fact_id)
 vd.edit_video(nb_final_shorts)
+"""
