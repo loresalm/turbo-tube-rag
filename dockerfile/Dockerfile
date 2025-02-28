@@ -19,7 +19,7 @@ RUN curl -fsSL https://ollama.com/install.sh | sh
 # Install Python dependencies
 RUN pip install ollama llama-index chromadb
 RUN pip install pandas
-RUN pip install numpy
+RUN pip install numpy==1.25
 RUN pip install yt-dlp
 RUN pip install llama-index
 RUN pip  install  llama-index-readers-web
@@ -35,7 +35,9 @@ RUN apt-get update && \
     rm -rf /var/lib/apt/lists/*
 
 RUN pip install moondream==0.0.5
-RUN pip install moviepy        
+RUN pip install moviepy  
+RUN python3 -m pip install moviepy==1.0.3 
+RUN pip install --user requests  
 
 # Set the working directory
 WORKDIR /home

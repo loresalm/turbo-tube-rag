@@ -7,6 +7,8 @@ import random
 from moviepy.editor import VideoFileClip  # type: ignore
 from moviepy.editor import AudioFileClip  # type: ignore
 from moviepy.editor import concatenate_videoclips  # type: ignore
+from moviepy.editor import CompositeVideoClip  # type: ignore
+from moviepy.editor import ColorClip  # type: ignore
 
 
 class VideoEditor:
@@ -44,17 +46,19 @@ class VideoEditor:
                 for clip_file in clip_dir:
                     print(f"--- clip file  {clip_file}")
                     if clip_file.endswith(".mp4"):
-                        section_clips.append(os.path.join(clip_path, clip_file))
+                        section_clips.append(os.path.join(clip_path,
+                                                          clip_file))
 
             self.clips[str(s_id)] = section_clips
 
-        """
-        audio_files = [os.path.join(audio_folder, f) for f in os.listdir(audio_folder) if f.endswith(".wav")]
+        audio_files = [
+            os.path.join(audio_folder, f)
+            for f in os.listdir(audio_folder) if f.endswith(".wav")]
+        print(audio_files)
         # Load the audio file
         self.audio = AudioFileClip(audio_files[0]).set_fps(44100).volumex(2.0)
         self.audio_duration = self.audio.duration
         self.section_duration = self.audio_duration/len(self.sections)
-        """
 
     def pick_random_clip(self, clips, nb_clips):
         if nb_clips <= len(clips):
@@ -64,22 +68,82 @@ class VideoEditor:
             while len(result) < nb_clips:
                 result.append(random.choice(clips))
             return result
+        
+    def video_2_shors(self):
+        for s_id, s in enumerate(self.sections):
+            clips = self.clips[str(s_id)]
+            for c_path in clips:
+                self.change_format(c_path)
 
-    def edit_video(self, nb_videos):
+    def change_format(self, clip_path, bg_color=(0, 0, 0)):
+
+        output_path = clip_path
+        clip = VideoFileClip(clip_path)
+        # Get dimensions
+        original_width = clip.w
+        original_height = clip.h
+
+        # Calculate target height for 9:16 aspect ratio (YouTube Shorts)
+        target_height = int(original_width * (16/9))
+        
+        # Ensure the height is even (divisible by 2)
+        if target_height % 2 != 0:
+            target_height += 1
+  
+        # Create background clip with the target dimensions
+        bg_clip = ColorClip(size=(original_width, target_height), 
+                            color=bg_color,
+                            duration=clip.duration)
+
+        # Position the original video in the center (both horizontally and vertically)
+        positioned_clip = clip.set_position("center")
+
+        # Composite the clips
+        formatted_clip = CompositeVideoClip([bg_clip, positioned_clip])
+
+        formatted_clip.write_videofile(
+            output_path,
+            codec="libx264",
+            audio_codec="aac",
+            fps=24,
+            preset="medium",
+            bitrate="8000k",
+            threads=2,
+            ffmpeg_params=["-pix_fmt", "yuv420p"]
+        )
+        # Close the formatted clip if we're just exporting
+        formatted_clip.close() 
+        clip.close()
+        return output_path
+      
+    def edit_video(self, nb_videos, clip_lenght):
 
         for s_id, s in enumerate(self.sections):
             c = self.pick_random_clip(self.clips[str(s_id)], nb_videos)
             self.clips[str(s_id)] = c
 
+        section_duration = self.audio_duration/len(self.sections)
+
         for vid_id in range(nb_videos):
             final_video_files = []
             for s_id, s in enumerate(self.sections):
-                print(self.clips[str(s_id)][vid_id])
-                final_video_files.append(self.clips[str(s_id)][vid_id])
-            selected_clips = [VideoFileClip(clip) for clip in final_video_files]
+                current_lenght = 0
+                while current_lenght < section_duration:
+                    final_video_files.append(self.clips[str(s_id)][vid_id])
+                    current_lenght += clip_lenght
+            selected_clips = [
+                VideoFileClip(clip).without_audio()
+                for clip in final_video_files]
             final_video = concatenate_videoclips(selected_clips,
-                                                 method="compose")
-            final_video.write_videofile(f"{self.final_output_path}/short_{vid_id}.mp4", codec="libx264", fps=24)
+                                                 method="chain")
+            final_video = final_video.set_audio(self.audio)
+            final_video.write_videofile(
+                f"{self.final_output_path}/short_{vid_id}.mp4",
+                codec="libx264", 
+                audio_codec="aac",  # Explicitly set audio codec
+                fps=24,
+                bitrate="8000k",    # Set a reasonable bitrate for quality
+                audio_bitrate="192k")
             for clip in selected_clips:
                 clip.close()
             final_video.close()

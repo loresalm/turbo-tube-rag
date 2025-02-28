@@ -22,6 +22,7 @@ video_match_per_section = config["video_match_per_section"]
 factor = config["factor"]
 max_nb_trials = config["max_nb_trials"]
 offset = config["offset"]
+interval_seconds = 10
 
 os.makedirs(output_path, exist_ok=True)
 
@@ -44,11 +45,12 @@ processor.get_script_sentences(fact_id, video_sections)
 #                                      #
 ########################################
 # Initialize YouTube search
+"""
 speaker_id = "p314"
 ag = AudioGenerator(output_path, output_file)
 ag.generate_audio(fact_id, speaker_id)
 
-
+"""
 ########################################
 #                                      #
 #   Step2: script --> download videos  #
@@ -79,9 +81,9 @@ vp.convert_videos2clips(fact_id, interval_seconds, factor, model_path)
 #     Step4: edit clips -->  shorts    #
 #                                      #
 ########################################
-"""
+
 nb_final_shorts = 3
 vd = VideoEditor(output_path, output_file_path)
 vd.get_video_audio_files(fact_id)
-vd.edit_video(nb_final_shorts)
-"""
+#vd.video_2_shors()
+vd.edit_video(nb_final_shorts, interval_seconds)
