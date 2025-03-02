@@ -3,12 +3,18 @@ from collections import defaultdict
 import shutil
 import json
 import random
+from PIL import Image, ImageDraw, ImageFont
 
-from moviepy.editor import VideoFileClip  # type: ignore
-from moviepy.editor import AudioFileClip  # type: ignore
-from moviepy.editor import concatenate_videoclips  # type: ignore
-from moviepy.editor import CompositeVideoClip  # type: ignore
-from moviepy.editor import ColorClip  # type: ignore
+
+from moviepy import VideoFileClip  # type: ignore
+from moviepy import AudioFileClip  # type: ignore
+from moviepy import concatenate_videoclips  # type: ignore
+from moviepy import CompositeVideoClip  # type: ignore
+from moviepy import ColorClip  # type: ignore
+from moviepy import TextClip  # type: ignore
+from moviepy import *
+from moviepy.video.tools.subtitles import SubtitlesClip
+import numpy as np
 
 
 class VideoEditor:
@@ -56,7 +62,7 @@ class VideoEditor:
             for f in os.listdir(audio_folder) if f.endswith(".wav")]
         print(audio_files)
         # Load the audio file
-        self.audio = AudioFileClip(audio_files[0]).set_fps(44100).volumex(2.0)
+        self.audio = AudioFileClip(audio_files[0])
         self.audio_duration = self.audio.duration
         self.section_duration = self.audio_duration/len(self.sections)
 
@@ -68,7 +74,7 @@ class VideoEditor:
             while len(result) < nb_clips:
                 result.append(random.choice(clips))
             return result
-        
+
     def video_2_shors(self):
         for s_id, s in enumerate(self.sections):
             clips = self.clips[str(s_id)]
@@ -85,18 +91,18 @@ class VideoEditor:
 
         # Calculate target height for 9:16 aspect ratio (YouTube Shorts)
         target_height = int(original_width * (16/9))
-        
+
         # Ensure the height is even (divisible by 2)
         if target_height % 2 != 0:
             target_height += 1
-  
+
         # Create background clip with the target dimensions
         bg_clip = ColorClip(size=(original_width, target_height), 
                             color=bg_color,
                             duration=clip.duration)
 
         # Position the original video in the center (both horizontally and vertically)
-        positioned_clip = clip.set_position("center")
+        positioned_clip = clip.with_position("center")
 
         # Composite the clips
         formatted_clip = CompositeVideoClip([bg_clip, positioned_clip])
@@ -115,14 +121,41 @@ class VideoEditor:
         formatted_clip.close() 
         clip.close()
         return output_path
-      
-    def edit_video(self, nb_videos, clip_lenght):
+
+    def generate_subtitle_text(self, fact_id, num_sections):
+        script_txt = self.fun_facts["fun_facts"][fact_id]["video_script_clean"][0]
+        words = script_txt.split()
+        words_per_section = len(words) // num_sections
+        sections = [" ".join(words[i * words_per_section:(i + 1) * words_per_section]) for i in range(num_sections)]
+
+        # Calculate the duration of each section
+        section_duration = self.audio_duration / num_sections
+
+        # Generate subtitles with equal durations
+        subtitles = []
+        for i in range(num_sections):
+            start_time = i * section_duration
+            end_time = (i + 1) * section_duration
+            text = sections[i]
+            subtitles.append((start_time, end_time, text))
+        self.subtitles = subtitles
+
+    def create_subtitle_clips(self, subtitles, video_size):
+        subtitle_clips = []
+        for start_time, end_time, text in subtitles:
+            subtitle_clip = TextClip("Your Subtitle", fontsize=24, color='white', font="DejaVu-Sans").set_duration(end_time - start_time).set_start(start_time)
+            subtitle_clips.append(subtitle_clip)
+        return subtitle_clips
+
+    def edit_video(self, fact_id, nb_videos, clip_lenght, num_subtitle_sections):
 
         for s_id, s in enumerate(self.sections):
             c = self.pick_random_clip(self.clips[str(s_id)], nb_videos)
             self.clips[str(s_id)] = c
 
         section_duration = self.audio_duration/len(self.sections)
+
+        self.generate_subtitle_text(fact_id, num_subtitle_sections)
 
         for vid_id in range(nb_videos):
             final_video_files = []
@@ -136,14 +169,45 @@ class VideoEditor:
                 for clip in final_video_files]
             final_video = concatenate_videoclips(selected_clips,
                                                  method="chain")
-            final_video = final_video.set_audio(self.audio)
-            final_video.write_videofile(
+            final_video = final_video.with_audio(self.audio)
+            
+
+            # Get video dimensions
+            video_width, video_height = final_video.size
+
+            # Create a sequence of subtitle clips (just black bars)
+            subtitle_clips = []
+
+            for start, end, _ in self.subtitles:
+                duration = end - start
+                # Create a black bar at the bottom as a subtitle background
+                bar_height = 40
+                subtitle_bg = (ColorClip(size=(video_width, bar_height), 
+                                        color=(0, 0, 0))
+                            .with_opacity(0.8)  # Semi-transparent
+                            .with_position((0, video_height-bar_height))  # Bottom of the video
+                            .with_start(start)
+                            .with_duration(duration))
+                subtitle_clips.append(subtitle_bg)
+
+            # First, create the video with subtitle backgrounds
+            video_with_backgrounds = CompositeVideoClip([final_video] + subtitle_clips)
+
+            # Process the original video file without creating an intermediate file
+            final_video_with_subtitles = video_with_backgrounds.copy()
+
+
+ 
+
+            final_video_with_subtitles.write_videofile(
                 f"{self.final_output_path}/short_{vid_id}.mp4",
                 codec="libx264", 
                 audio_codec="aac",  # Explicitly set audio codec
                 fps=24,
                 bitrate="8000k",    # Set a reasonable bitrate for quality
                 audio_bitrate="192k")
+            for clip in subtitle_clips:
+                clip.close()
             for clip in selected_clips:
                 clip.close()
             final_video.close()

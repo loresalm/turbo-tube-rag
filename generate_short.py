@@ -2,7 +2,7 @@ from DocumentProcessor import DocumentProcessor
 from YouTubeSearcher import YouTubeSearcher
 from VideoProcessor import VideoProcessor
 from VideoEditor import VideoEditor
-from AudioGenerator import AudioGenerator
+#from AudioGenerator import AudioGenerator
 import os
 import json
 
@@ -83,7 +83,8 @@ vp.convert_videos2clips(fact_id, interval_seconds, factor, model_path)
 ########################################
 
 nb_final_shorts = 3
+num_sections = 6
 vd = VideoEditor(output_path, output_file_path)
 vd.get_video_audio_files(fact_id)
 #vd.video_2_shors()
-vd.edit_video(nb_final_shorts, interval_seconds)
+vd.edit_video(fact_id, nb_final_shorts, interval_seconds, num_sections)

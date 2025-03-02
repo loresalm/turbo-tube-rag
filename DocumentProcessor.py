@@ -249,6 +249,7 @@ class DocumentProcessor:
         self.sentences = parts
 
         fact = self.fun_facts["fun_facts"][fact_key]
+        fact["video_script_clean"] = self.sentences
         fact["video_script_sections"] = parts
         fact["keywords_sections"] = keywords
         self.fun_facts["fun_facts"][fact_key] = fact
