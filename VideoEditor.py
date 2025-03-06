@@ -102,7 +102,7 @@ class VideoEditor:
                             duration=clip.duration)
 
         # Position the original video in the center (both horizontally and vertically)
-        positioned_clip = clip.with_position("center")
+        positioned_clip = clip.set_position("center")
 
         # Composite the clips
         formatted_clip = CompositeVideoClip([bg_clip, positioned_clip])
@@ -169,7 +169,7 @@ class VideoEditor:
                 for clip in final_video_files]
             final_video = concatenate_videoclips(selected_clips,
                                                  method="chain")
-            final_video = final_video.with_audio(self.audio)
+            final_video = final_video.set_audio(self.audio)
             
 
             # Get video dimensions
@@ -184,10 +184,10 @@ class VideoEditor:
                 bar_height = 40
                 subtitle_bg = (ColorClip(size=(video_width, bar_height), 
                                         color=(0, 0, 0))
-                            .with_opacity(0.8)  # Semi-transparent
-                            .with_position((0, video_height-bar_height))  # Bottom of the video
-                            .with_start(start)
-                            .with_duration(duration))
+                            .set_opacity(0.8)  # Semi-transparent
+                            .set_position((0, video_height-bar_height))  # Bottom of the video
+                            .set_start(start)
+                            .set_duration(duration))
                 subtitle_clips.append(subtitle_bg)
 
             # First, create the video with subtitle backgrounds

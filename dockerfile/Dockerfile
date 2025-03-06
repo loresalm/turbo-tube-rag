@@ -37,6 +37,19 @@ RUN apt-get update && \
 RUN pip install moondream==0.0.5
 RUN pip install moviepy==2.0.0.dev2
 RUN pip install imageio==2.25.1
+RUN apt-get update && apt-get install -y \
+    imagemagick \
+    ttf-mscorefonts-installer \
+    ghostscript \
+    ffmpeg \
+    && fc-cache -fv \
+    && rm -rf /var/lib/apt/lists/*
+
+# Set ImageMagick policy to allow text rendering
+RUN echo "<?xml version='1.0' encoding='UTF-8'?>" > /etc/ImageMagick-6/policy.xml \
+    && echo "<policymap>" >> /etc/ImageMagick-6/policy.xml \
+    && echo "  <policy domain='coder' rights='read | write' pattern='*' />" >> /etc/ImageMagick-6/policy.xml \
+    && echo "</policymap>" >> /etc/ImageMagick-6/policy.xml
 
 # Set the working directory
 WORKDIR /home
