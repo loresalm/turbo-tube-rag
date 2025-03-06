@@ -86,5 +86,5 @@ nb_final_shorts = 3
 num_sections = 6
 vd = VideoEditor(output_path, output_file_path)
 vd.get_video_audio_files(fact_id)
-#vd.video_2_shors()
+vd.video_2_shors()
 vd.edit_video(fact_id, nb_final_shorts, interval_seconds, num_sections)
