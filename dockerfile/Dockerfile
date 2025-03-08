@@ -19,7 +19,7 @@ RUN curl -fsSL https://ollama.com/install.sh | sh
 # Install Python dependencies
 RUN pip install ollama llama-index chromadb
 RUN pip install pandas
-RUN pip install numpy
+RUN pip install numpy==1.24.4 
 RUN pip install yt-dlp
 RUN pip install llama-index
 RUN pip  install  llama-index-readers-web
@@ -50,6 +50,8 @@ RUN echo "<?xml version='1.0' encoding='UTF-8'?>" > /etc/ImageMagick-6/policy.xm
     && echo "<policymap>" >> /etc/ImageMagick-6/policy.xml \
     && echo "  <policy domain='coder' rights='read | write' pattern='*' />" >> /etc/ImageMagick-6/policy.xml \
     && echo "</policymap>" >> /etc/ImageMagick-6/policy.xml
+
+RUN pip install numba==0.57.1
 
 # Set the working directory
 WORKDIR /home

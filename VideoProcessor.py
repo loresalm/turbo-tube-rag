@@ -66,7 +66,7 @@ class VideoProcessor:
             print("   |")
             with suppress_logging():
                 response = ollama.chat(
-                    model="Zephyr",
+                    model="llama3.2:3B",
                     messages=[
                         {
                             "role": "user",
@@ -181,6 +181,7 @@ class VideoProcessor:
             encoded_image = model.encode_image(image)
             answer = model.query(encoded_image,
                                  prompt)["answer"].lower().strip()
+            print(answer)
             if answer == "yes":
                 responses.append(1)
             elif answer == "no":
@@ -335,7 +336,7 @@ class VideoProcessor:
         if len(self.sentences) == 0:
             self.sentences = self.fun_facts["fun_facts"][fact_id]["video_script_sections"]
 
-        video_ids = self.fun_facts["fun_facts"][fact_id]["best_video_idx"]
+        # video_ids = self.fun_facts["fun_facts"][fact_id]["best_video_idx"]
         video_paths = self.fun_facts["fun_facts"][fact_id]["video_paths"]
         keywords = self.fun_facts["fun_facts"][fact_id]["keywords_sections"]
 
@@ -345,12 +346,16 @@ class VideoProcessor:
             print(" ")
             ky = keywords[str(i)]
             prompt = self.get_pompt("moondreamer_prompt", {"keywords": ky})
-            for vid_id in video_ids[str(i)]:
-                video_name = video_paths[vid_id]
-
+            # for vid_id in video_ids[str(i)]:
+            for video_name in video_paths:
+                # video_name = video_paths[vid_id]
+                print(video_name)
+                print("extracting frames")
                 self.extract_center_frames(fact_id, video_name,
                                            interval_seconds, factor)
+                print("evaluate with moondream")
                 self.evaluate_frame_with_moondream(model,  prompt)
+                print("extract good clips")
                 self.process_video_with_filters(fact_id, video_name)
                 self.extract_good_clips(str(i), fact_id, video_name,
                                         interval_seconds)

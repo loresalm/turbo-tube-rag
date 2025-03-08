@@ -2,6 +2,7 @@ import ollama  # type: ignore
 from bs4 import BeautifulSoup  # type: ignore
 import requests  # type: ignore
 import re
+import os
 import json
 import logging
 from contextlib import contextmanager
@@ -18,74 +19,163 @@ def suppress_logging():
 
 
 class DocumentProcessor:
-    def __init__(self, prompt_file_path, json_file_path=None):
-        if json_file_path is None:
-            self.fun_facts = {}
-        else:
-            self.json_file_path = json_file_path
-            with open(json_file_path, 'r') as file:
+    def __init__(self, config_file_path):
+        # load config
+        with open(config_file_path, 'r') as file:
+            self.config = json.load(file)
+        # load or create output file
+        self.json_file_path = self.config["output_file"]
+        if os.path.exists(self.json_file_path):
+            with open(self.json_file_path, 'r', encoding='utf-8') as file:
                 self.fun_facts = json.load(file)
+        else:
+            self.fun_facts = {}
+        # load prompt file
+        prompt_file_path = self.config["prompts_file"]
         with open(prompt_file_path, 'r') as file:
             self.prompts = json.load(file)
-        print("+--> Ready to read documents")
-        print("|")
+        # load create log file
+        self.log_file = self.config["log_file"]
+        log_dir = os.path.dirname(self.log_file)
+        if log_dir and not os.path.exists(log_dir):
+            os.makedirs(log_dir, exist_ok=True)
+        self.process_id = "DocumentProcessor"
+        self.log("ready to process")
+        print("\n DocumentProcessor: Ready \n ")
+
+    def log(self, text):
+        # Create directory if it doesn't exist
+        # Format the log entry
+        log_entry = f"------- {self.process_id} -------\n{text}\n"
+
+        # Write to the log file (create if doesn't exist, append if it does)
+        with open(self.log_file, 'a') as log_file:
+            log_file.write(log_entry)
 
     def get_pompt(self, prompt_id, var_dict):
         prompt = self.prompts[prompt_id]
         return prompt.format(**var_dict)
 
+    def fetch_webpage_content(self, url):
+        """Fetch cleaner text from a webpage."""
+        try:
+            response = requests.get(url, headers={"User-Agent": "Mozilla/5.0"})
+            if response.status_code != 200:
+                self.log(f"Failed to fetch {url}")
+                print(f"\n DocumentProcessor: Failed to fetch {url} \n ")
+                return None
+            soup = BeautifulSoup(response.text, "html.parser")
+            # Remove common non-content elements before extraction
+            self.remove_unwanted_elements(soup)
+            # Try to extract the main content with more targeted selectors
+            main_content = (
+                soup.find("article") or
+                soup.find("main") or
+                soup.find(class_=lambda c: c and any(
+                    x in str(c).lower() for x in ["content", "post", "entry", "article", "main"])) or
+                soup.find("div", {"id": lambda i: i and any(x in str(i).lower() for x in ["content", "post", "entry", "article", "main"])}) or
+                soup.find("div", {"class": lambda c: c and any(x in str(c).lower() for x in ["content", "post", "entry", "article", "main"])})
+            )
+            if not main_content:  # Fallback if no content is found
+                main_content = soup.body
+            # Get text with better formatting
+            text = main_content.get_text(separator="\n", strip=True) if main_content else ""
+            # Clean the extracted text
+            text = self.clean_text(text)
+            # Apply density-based filtering to favor content paragraphs
+            text = self.filter_by_text_density(text)
+            self.log(f"Text extracted from: {url}")
+            self.log(f"Text content: \n - \n {text} \n - \n")
+            print(f"\n DocumentProcessor: Text extracted from: {url} \n ")
+            return text
+        except Exception as e:
+            self.log(f"Error processing {url}: {str(e)}")
+            print(f"\n DocumentProcessor: Error processing {url}: {str(e)} \n")
+            return None
+
+    def remove_unwanted_elements(self, soup):
+        """Remove unwanted elements from the soup before text extraction."""
+        # Common selectors for non-content elements
+        unwanted_selectors = [
+            "nav", "header", "footer", "aside", 
+            ".sidebar", ".ads", ".advertisement", ".banner", 
+            ".menu", ".navigation", ".social", ".share",
+            ".comments", ".related", "#comments", "#sidebar",
+            "[class*='ad-']", "[class*='advertisement']", "[id*='ad-']",
+            "script", "style", "noscript", "iframe"
+        ]
+        
+        for selector in unwanted_selectors:
+            for element in soup.select(selector):
+                element.decompose()
+
     def clean_text(self, text):
-        # Remove unwanted sections based on common patterns
+        """Clean extracted text by removing noise patterns."""
+        # Expanded list of noise patterns
         noise_patterns = [
+            # Original patterns
             r"Table of Contents", r"Quick Facts", r"Read Next", r"Discover",
             r"Feedback", r"References & Edit History",
             r"Share to social media", r"Copy Citation",
             r"Ask the Chatbot a Question", r"External Websites",
             r"Related Topics", r"Images",
             r"verified", r"Last Updated:", r"Select Citation Style",
-            r"Show\xa0more", r"Print", r"Cite", r"More Actions"
+            r"Show\xa0more", r"Print", r"Cite", r"More Actions",
+            
+            # Added patterns for common web pollution
+            r"Subscribe", r"Newsletter", r"Sign up", r"Follow us", 
+            r"Share this", r"Like us", r"Connect with us",
+            r"Sponsored", r"Advertisement", r"Promoted", r"Recommended",
+            r"You might also like", r"Popular", r"Trending",
+            r"Copyright ©", r"All rights reserved", r"Terms", r"Privacy Policy",
+            r"Cookie Policy", r"More from", r"View all", r"Load more",
+            r"See also", r"Related articles", r"Top stories",
+            r"Join our community", r"Skip to content"
         ]
+        
         # Join patterns into a single regex
         noise_regex = re.compile("|".join(noise_patterns), re.IGNORECASE)
+        
         # Remove lines that match any of the noise patterns
-        cleaned_lines = [
-            line for line in text.split("\n") if not noise_regex.search(line)]
+        cleaned_lines = [line for line in text.split("\n") if not noise_regex.search(line)]
+        
+        # Filter out very short lines (likely menu items, buttons, etc.)
+        cleaned_lines = [line for line in cleaned_lines if len(line.strip()) > 3]
+        
+        # Remove duplicate lines (often happens with repeated elements)
+        unique_lines = []
+        for line in cleaned_lines:
+            if line not in unique_lines:
+                unique_lines.append(line)
+
         # Reconstruct the cleaned text
-        cleaned_text = "\n".join(cleaned_lines)
+        cleaned_text = "\n".join(unique_lines)
 
         return cleaned_text
 
-    def fetch_webpage_content(self, url):
-        """Fetch cleaner text from a webpage."""
-        response = requests.get(url, headers={"User-Agent": "Mozilla/5.0"})
-        if response.status_code != 200:
-            print(f"+--> Failed to fetch {url}")
-            print("|")
-            return None
-        soup = BeautifulSoup(response.text, "html.parser")
-        # Try to extract the main content
-        main_content = (soup.find("article") or
-                        soup.find("main") or
-                        soup.find("div", {"id": "content"}))
-        if not main_content:  # Fallback if no content is found
-            main_content = soup.body
-        text = main_content.get_text(separator="\n",
-                                     strip=True) if main_content else ""
-        # **Filtering out unwanted content**
-        text = self.clean_text(text)
-        print(f"+--> Text extracted from: {url}")
-        print("|")
-        return text
+    def filter_by_text_density(self, text):
+        """Filter text based on character density to favor content paragraphs."""
+        lines = text.split("\n")
+        filtered_lines = []
+        for line in lines:
+            line = line.strip()
+            # Skip empty lines
+            if not line:
+                continue
+            # Check for text density - content usually has higher density
+            # This helps filter out menu items, headings, etc. while keeping paragraphs
+            if len(line) > 40 or (len(line) > 20 and "." in line):
+                filtered_lines.append(line)
+        return "\n".join(filtered_lines)
 
     def extract_fun_facts(self, article_text):
-        """Extract 3 fun and interesting facts from the given article."""
-        print("+--> Generating fun facts:")
-        print("|")
+        self.log(f"Generating fun facts")
+        print(f"\n DocumentProcessor: Generating fun facts. \n ")
         prompt = self.get_pompt("extract_fun_facts",
                                 {"article_text": article_text})
         with suppress_logging():
             response = ollama.chat(
-                model="Zephyr",
+                model="llama3.2:3B",
                 messages=[
                     {
                         "role": "user",
@@ -93,13 +183,11 @@ class DocumentProcessor:
                     }
                 ],
             )
-        print("|")
-        print("+--> Done")
-        print("|")
+        self.log(f"Fun facts generated: {response['message']['content']}")
+        print(f"\n DocumentProcessor: Fun facts generated. \n ")
         return response["message"]["content"]
 
     def parse_fun_facts(self, response_text):
-        """Parse numbered fun facts from the LLM response."""
         facts = re.findall(r"\d+\.\s(.+)", response_text)
         return facts
 
@@ -109,7 +197,7 @@ class DocumentProcessor:
             prompt = self.get_pompt("youtube_queries",
                                     {"fact": fact})
             response = ollama.chat(
-                model="Zephyr",
+                model="llama3.2:3B",
                 messages=[
                     {
                         "role": "user",
@@ -126,7 +214,7 @@ class DocumentProcessor:
             prompt = self.get_pompt("voiceover_script",
                                     {"fun_fact": fun_fact})
             response = ollama.chat(
-                model="Zephyr",
+                model="llama3.2:3B",
                 messages=[
                     {
                         "role": "user",
@@ -174,9 +262,9 @@ class DocumentProcessor:
         print("|")
         return result
 
-    def get_fun_facts(self, article_url, output_file):
-        """Full pipeline: Extract fun facts, generate YouTube querie
-        and video scripts for each, then save to JSON."""
+    def get_fun_facts(self):
+        article_url = self.config["article_url"]
+        output_file = self.config["output_file"]
         article_text = self.fetch_webpage_content(article_url)
         fun_facts_text = self.extract_fun_facts(article_text)
         fun_facts = self.parse_fun_facts(fun_facts_text)
@@ -192,8 +280,6 @@ class DocumentProcessor:
         # Save results to a JSON file
         with open(output_file, "w", encoding="utf-8") as f:
             json.dump(result, f, indent=4, ensure_ascii=False)
-        print(f"+--> Results saved at {output_file}")
-        print("|")
         self.fun_facts = result
 
     def generate_queries_script(self, fact_id, output_file):

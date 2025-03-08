@@ -1,20 +1,14 @@
 import os
-from collections import defaultdict
 import shutil
 import json
 import random
-from PIL import Image, ImageDraw, ImageFont
 
-
-from moviepy import VideoFileClip  # type: ignore
-from moviepy import AudioFileClip  # type: ignore
-from moviepy import concatenate_videoclips  # type: ignore
-from moviepy import CompositeVideoClip  # type: ignore
-from moviepy import ColorClip  # type: ignore
-from moviepy import TextClip  # type: ignore
-from moviepy import *
-from moviepy.video.tools.subtitles import SubtitlesClip
-import numpy as np
+from moviepy.editor import VideoFileClip  # type: ignore
+from moviepy.editor import AudioFileClip  # type: ignore
+from moviepy.editor import concatenate_videoclips  # type: ignore
+from moviepy.editor import CompositeVideoClip  # type: ignore
+from moviepy.editor import ColorClip  # type: ignore
+from moviepy.editor import TextClip  # type: ignore
 
 
 class VideoEditor:
